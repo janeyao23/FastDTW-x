@@ -14,6 +14,7 @@
 #include <string>
 #include "TimeSeriesPoint.h"
 #include "FDAssert.h"
+#include <algorithm>
 #include <iostream>
 #include <cstdio>
 #include <sstream>
@@ -34,30 +35,71 @@ protected:
     vector<string> _labels;
     vector<JDouble> _timeReadings;
     vector<TimeSeriesPoint<ValueType,nDimension> > _tsArray;
-    
+    JInt _dimension;
+
     void setMaxCapacity(JInt capacity)
     {
         _timeReadings.reserve(capacity);
         _tsArray.reserve(capacity);
     }
-public:
 
-    
-    TimeSeries():_labels(),_timeReadings(),_tsArray()
+private:
+    void rebuildDefaultLabels()
     {
+        _labels.clear();
         _labels.push_back(string("time"));
         stringstream ss;
-
-        for (JInt i = 0; i<nDimension; ++i) {
-			ss.clear();
+        for (JInt i = 0; i<_dimension; ++i) {
+            ss.str("");
+            ss.clear();
             ss << i;
-			_labels.push_back(ss.str());
+            _labels.push_back(ss.str());
         }
     }
-    
-    TimeSeries(TimeSeries& timeseries):_labels(timeseries._labels),_timeReadings(timeseries._timeReadings),_tsArray(timeseries._tsArray)
+
+    void syncDimensionWithLabels()
     {
-        
+        if (_labels.empty()) {
+            _labels.push_back(string("time"));
+        }
+        _dimension = static_cast<JInt>(_labels.size()) - 1;
+    }
+
+    void setDimension(JInt newDimension)
+    {
+        if (nDimension != 0) {
+            FDASSERT0(newDimension == nDimension, "ERROR:  cannot change dimensionality of a fixed-dimension time series.");
+        }
+        _dimension = newDimension;
+        rebuildDefaultLabels();
+    }
+
+    void ensureDimension(JInt pointDimension)
+    {
+        if (_dimension == 0) {
+            setDimension(pointDimension);
+        }
+        else {
+            FDASSERT(pointDimension == _dimension, "ERROR:  The TimeSeriesPoint contains the wrong number of values. expected:%ld,found:%ld", _dimension, pointDimension);
+        }
+    }
+
+public:
+
+
+    TimeSeries():_labels(),_timeReadings(),_tsArray(),_dimension(nDimension)
+    {
+        rebuildDefaultLabels();
+    }
+
+    explicit TimeSeries(JInt dimension):_labels(),_timeReadings(),_tsArray(),_dimension(nDimension)
+    {
+        setDimension(dimension);
+    }
+
+    TimeSeries(TimeSeries& timeseries):_labels(timeseries._labels),_timeReadings(timeseries._timeReadings),_tsArray(timeseries._tsArray),_dimension(timeseries._dimension)
+    {
+
     }
         
     //ignored file io interfaces
@@ -80,7 +122,7 @@ public:
     
     JInt numOfDimensions() const
     {
-        return _labels.size() - 1;//potential bug when use default constructor
+        return _dimension;
     }
     
     JDouble getTimeAtNthPoint(JInt n) const
@@ -88,7 +130,7 @@ public:
         return _timeReadings[n];
     }
     
-    string& getLabel(JInt n) const
+    const string& getLabel(JInt n) const
     {
         return _labels[n];
     }
@@ -103,13 +145,13 @@ public:
     void setLabels(const vector<string>& lbs)
     {
         _labels = lbs;
+        syncDimensionWithLabels();
     }
-    
+
     void setLabels(const string* strArr,JInt num)
     {
-        _labels.clear();
-        _labels.reserve(num);
-        copy(strArr, strArr+num, _labels.begin());
+        _labels.assign(strArr, strArr + num);
+        syncDimensionWithLabels();
     }
     
     const vector<string>* getLabels() const
@@ -141,16 +183,16 @@ public:
     
     void addFirst(JDouble time, TimeSeriesPoint<ValueType,nDimension> const& values)
     {
-        FDASSERT(values.size()+1 == _labels.size(), "ERROR:  The TimeSeriesPoint contains the wrong number of values. expected:%ld,found:%ld",_labels.size()-1,values.size());
-        FDASSERT0(time<_timeReadings[0], "ERROR:  The point being inserted into the beginning of the time series does not have the correct time sequence.");
+        ensureDimension(values.size());
+        FDASSERT0(_timeReadings.empty() || time < _timeReadings.front(), "ERROR:  The point being inserted into the beginning of the time series does not have the correct time sequence.");
         _timeReadings.insert(_timeReadings.begin(), time);
         _tsArray.insert(_tsArray.begin(),values);
     }
-    
+
     void addLast(JDouble time, TimeSeriesPoint<ValueType,nDimension> const& values)
     {
-        FDASSERT(values.size()+1 == _labels.size(), "ERROR:  The TimeSeriesPoint contains the wrong number of values. expected:%ld,found:%ld",_labels.size()-1,values.size());
-        FDASSERT0(_timeReadings.size()==0 || time>_timeReadings[_timeReadings.size() - 1], "ERROR:  The point being inserted into the beginning of the time series does not have the correct time sequence.");
+        ensureDimension(values.size());
+        FDASSERT0(_timeReadings.empty() || time > _timeReadings[_timeReadings.size() - 1], "ERROR:  The point being inserted into the beginning of the time series does not have the correct time sequence.");
         _timeReadings.push_back(time);
         _tsArray.push_back(values);
     }
