@@ -32,23 +32,23 @@ public:
         JDouble reducedPtSize = ts.size()/(JDouble)shrunkSize;
         JInt ptToReadFrom(0);
         JInt ptToReadTo;
+        const JInt dimensions = ts.numOfDimensions();
         while (ptToReadFrom < ts.size()) {
             ptToReadTo = (JInt)round(reducedPtSize*(TimeSeries<ValueType,nDimension>::size()+1)) -1;
 
             JInt ptsToRead = ptToReadTo - ptToReadFrom + 1;
             JDouble timeSum(0.0);
-            ValueType measurementSums[nDimension];
-            fill(measurementSums, measurementSums+nDimension, 0);
+            vector<ValueType> measurementSums(dimensions, static_cast<ValueType>(0));
             for (JInt pt = ptToReadFrom; pt<=ptToReadTo; ++pt) {
                 const MeasurementVector<ValueType, nDimension> *currentPoint = ts.getMeasurementVector(pt);
                 timeSum += ts.getTimeAtNthPoint(pt);
-                for (JInt dim = 0; dim<ts.numOfDimensions(); ++dim) {
+                for (JInt dim = 0; dim<dimensions; ++dim) {
                     measurementSums[dim] += (*currentPoint)[dim];
                 }
             }
             // Determine the average value over the range ptToReadFrom...ptToReadFrom.
             timeSum = timeSum / ptsToRead;
-            for (JInt dim = 0; dim<ts.numOfDimensions(); dim++) {
+            for (JInt dim = 0; dim<dimensions; dim++) {
                 measurementSums[dim] = measurementSums[dim] / ptsToRead;
             }
             _aggPtSize[TimeSeries<ValueType,nDimension>::size()] = ptsToRead;

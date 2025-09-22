@@ -57,3 +57,22 @@ Sample code:
         info.getPath()->print(std::cout);
     }
 
+多维序列示例：
+
+    std::vector<std::array<double, 2>> left{{{0.0, 1.0}, {1.0, 2.0}}};
+    std::vector<std::array<double, 2>> right{{{0.0, 1.2}, {1.1, 2.1}}};
+
+    TimeSeries<double, 2> fixedDim;
+    for (std::size_t i = 0; i < left.size(); ++i) {
+        fixedDim.addLast(static_cast<double>(i), TimeSeriesPoint<double, 2>(left[i].data()));
+    }
+
+    TimeSeries<double, 0> dynamicDim(2); // 运行时设定维度
+    for (std::size_t i = 0; i < right.size(); ++i) {
+        TimeSeriesPoint<double, 0> point(right[i].data(), 2);
+        dynamicDim.addLast(static_cast<double>(i), point);
+    }
+
+    EuclideanDistance dist;
+    double d = FAST::getWarpDistBetween(fixedDim, dynamicDim, dist);
+
